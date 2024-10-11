@@ -5,6 +5,12 @@ Created on Tue Oct  8 16:51:20 2024
 
 @author: asus
 """
+
+
+
+#----------Import Libs------------------
+
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -28,6 +34,14 @@ from sklearn.svm import SVR
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import KFold 
+
+
+
+
+
+#----------Import Data------------------
+
+
 '''
 in dade ha marbut be qeimate khanehaye california mibashad k bar asase 8 moalefe tayin sodeand
 dar marhale aval data ha az ketabkhane sklearn import va check shode and k dadeye tekrari va ya
@@ -35,8 +49,15 @@ dadeye khali nadashte bashand
 '''
 #step 0 --> data cleaning
 data=fetch_california_housing()
+
+
+
 x=data.data
 y=data.target
+
+
+#-----------Step0 : DATA CLEANING ----------------------
+
 a=pd.DataFrame(x)
 b=pd.DataFrame(y)
 a.describe()
@@ -50,30 +71,64 @@ a.dropna(inplace=True)
 b.dropna(inplace=True)
 a.drop_duplicates(inplace=True)
 
+'''
+PLEASE REPORT THE DATA CLEANING RESULT LIKE
+WE DONT HAVE ANY NAN VALUE AND ....
+
+
+
+
+
+'''
+
+
+
+#-----------Step1 : X and Y ----------------------
 #step 1 --> x o y ra misazim
 x1=np.array(a)
 y1=np.array(b)
 
+
+
+#-----------Step2 : KFOLD ----------------------
 #step 2 --> kfold
 kf=KFold(n_splits=10,shuffle=True,random_state=42)
 
+
+
+#-----------Step3 : Model selection ----------------------
+#-----------LR ----------------------
 #STEP 3 --> Tayine model ha
 model1=LinearRegression()
+#inja bayad my_params ro khali bzarid choon LR hypeparameters ndre
+my_params1= {}
+gs1=GridSearchCV(model1,my_params1,cv=kf,scoring='neg_mean_absolute_percentage_error')
 
+
+
+
+
+#-----------KNN ----------------------
 model2=KNeighborsRegressor()
 my_params2= { 'n_neighbors':[1,2,3,4,5,6,11],
             'metric':['minkowski'  , 'euclidean' , 'manhattan'] }
 gs2=GridSearchCV(model2,my_params2,cv=kf,scoring='neg_mean_absolute_percentage_error')
 
+
+#-----------DT ----------------------
 model3=DecisionTreeRegressor()
 my_params3={ 'max_depth':[1,2,3,4,5,6,7,11]}
 gs3=GridSearchCV(model3, my_params3,cv=kf,scoring='neg_mean_absolute_percentage_error')
 
+
+#-----------RF----------------------
 model4=RandomForestRegressor()
 my_params4={ 'n_stimators':[1,2,3,4,5,6,7,8,9,11] ,
             'max_features':[1,2,3,4,5,6,7,8,9,11] }
 gs5=GridSearchCV(model4, my_params4,cv=kf,scoring='neg_mean_absolute_percentage_error')
 
+
+#----------SVR ----------------------
 model5=SVR()
 my_params5={'kernel':['poly','rbf','linear'],
            'C':[0.001,0.01,1]}
@@ -83,6 +138,16 @@ model=[LinearRegression(),KNeighborsRegressor(),DecisionTreeRegressor(),RandomFo
 
 
 
+#------------------REPORT---------------------------
+'''
+FINAL REPORT:
+
+
+
+
+
+
+'''
 
 
 
