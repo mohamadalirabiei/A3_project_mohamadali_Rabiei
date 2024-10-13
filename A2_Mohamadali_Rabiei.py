@@ -1,16 +1,9 @@
 # -*- coding: utf-8 -*-
-#start
 """
 Created on Tue Oct  8 16:51:20 2024
 
 @author: asus
 """
-
-
-
-#----------Import Libs------------------
-
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -34,14 +27,7 @@ from sklearn.svm import SVR
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import KFold 
-
-
-
-
-
-#----------Import Data------------------
-
-
+from sklearn.preprocessing import MinMaxScaler
 '''
 in dade ha marbut be qeimate khanehaye california mibashad k bar asase 8 moalefe tayin sodeand
 dar marhale aval data ha az ketabkhane sklearn import va check shode and k dadeye tekrari va ya
@@ -49,15 +35,8 @@ dadeye khali nadashte bashand
 '''
 #step 0 --> data cleaning
 data=fetch_california_housing()
-
-
-
 x=data.data
 y=data.target
-
-
-#-----------Step0 : DATA CLEANING ----------------------
-
 a=pd.DataFrame(x)
 b=pd.DataFrame(y)
 a.describe()
@@ -70,89 +49,95 @@ a.duplicated()
 a.dropna(inplace=True)
 b.dropna(inplace=True)
 a.drop_duplicates(inplace=True)
-
-'''
-PLEASE REPORT THE DATA CLEANING RESULT LIKE
-WE DONT HAVE ANY NAN VALUE AND ....
-
-
-
-
-
 '''
 
+dar khatte 43 va 44 etelaate dade ha gerefte shodand va besurate zir namayesh dade shodand
+ke moshakhas shod hameye dade ha dorost va non-null budand va hich objecti darune anha vojud nadasht
+ama baraye etminan az inke dade yi khali va ya tekrari nabashad anhara drop kardim.
 
+a.info():
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 20640 entries, 0 to 20639
+Data columns (total 8 columns):
+ #   Column  Non-Null Count  Dtype  
+---  ------  --------------  -----  
+ 0   0       20640 non-null  float64
+ 1   1       20640 non-null  float64
+ 2   2       20640 non-null  float64
+ 3   3       20640 non-null  float64
+ 4   4       20640 non-null  float64
+ 5   5       20640 non-null  float64
+ 6   6       20640 non-null  float64
+ 7   7       20640 non-null  float64
+dtypes: float64(8)
 
+b.info():
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 20640 entries, 0 to 20639
+Data columns (total 1 columns):
+ #   Column  Non-Null Count  Dtype  
+---  ------  --------------  -----  
+ 0   0       20640 non-null  float64
+dtypes: float64(1)
+
+'''
 #-----------Step1 : X and Y ----------------------
-#step 1 --> x o y ra misazim
 x1=np.array(a)
 y1=np.array(b)
 
-
-
 #-----------Step2 : KFOLD ----------------------
-#step 2 --> kfold
 kf=KFold(n_splits=10,shuffle=True,random_state=42)
-
-
 
 #-----------Step3 : Model selection ----------------------
 #-----------LR ----------------------
-#STEP 3 --> Tayine model ha
 model1=LinearRegression()
-#inja bayad my_params ro khali bzarid choon LR hypeparameters ndre
 my_params1= {}
 gs1=GridSearchCV(model1,my_params1,cv=kf,scoring='neg_mean_absolute_percentage_error')
-
-
-
-
-
+gs1.fit(x1,y1)
 #-----------KNN ----------------------
 model2=KNeighborsRegressor()
-my_params2= { 'n_neighbors':[1,2,3,4,5,6,11],
+my_params2= { 'n_neighbors':[1,2,3,4,5,6,100],
             'metric':['minkowski'  , 'euclidean' , 'manhattan'] }
 gs2=GridSearchCV(model2,my_params2,cv=kf,scoring='neg_mean_absolute_percentage_error')
-
-
+gs2.fit(x1,y1)
 #-----------DT ----------------------
 model3=DecisionTreeRegressor()
-my_params3={ 'max_depth':[1,2,3,4,5,6,7,11]}
+my_params3={ 'max_depth':[1,2,3,4,5,6,7,100]}
 gs3=GridSearchCV(model3, my_params3,cv=kf,scoring='neg_mean_absolute_percentage_error')
-
-
+gs3.fit(x1,y1)
 #-----------RF----------------------
 model4=RandomForestRegressor()
-my_params4={ 'n_stimators':[1,2,3,4,5,6,7,8,9,11] ,
-            'max_features':[1,2,3,4,5,6,7,8,9,11] }
-gs5=GridSearchCV(model4, my_params4,cv=kf,scoring='neg_mean_absolute_percentage_error')
-
-
+my_params4={ 'n_estimators':[1,2,3,4,5,6,7,8,9,100] ,
+            'max_features':[1,2,3,4,5,6,7,8,9] }
+gs4=GridSearchCV(model4, my_params4,cv=kf,scoring='neg_mean_absolute_percentage_error')
+gs4.fit(x1,y1)
 #----------SVR ----------------------
 model5=SVR()
+scaler= MinMaxScaler()
+X_scaled=scaler.fit_transform(x1)
 my_params5={'kernel':['poly','rbf','linear'],
-           'C':[0.001,0.01,1]}
+           'C':[0.0001,0.001,0.01,1,10]}
 gs5=GridSearchCV(model5, my_params5,cv=kf,scoring='neg_mean_absolute_percentage_error')
+gs5.fit(X_scaled,y1)
+#model=[LinearRegression(),KNeighborsRegressor(),DecisionTreeRegressor(),RandomForestRegressor(),SVR()]
 
-model=[LinearRegression(),KNeighborsRegressor(),DecisionTreeRegressor(),RandomForestRegressor(),SVR()]
+#-----------Step4 : best score & param ----------------------
+gs1.best_score_    #---->    np.float64(-0.3178265911552671)
+gs2.best_score_    #---->    np.float64(-0.4806836705270506)
+gs3.best_score_    #---->    np.float64(-0.2503102576177472)
+gs4.best_score_    #---->    np.float64(-0.17883512446232863)
+gs5.best_score_    #---->    np.float64(-0.22329321703244903)
+
+gs1.best_params_    #---->   no params {}
+gs2.best_params_    #---->   {'metric': 'manhattan', 'n_neighbors': 5}
+gs3.best_params_    #---->   {'max_depth': 100}
+gs4.best_params_    #---->   {'max_features': 4, 'n_estimators': 100}
+gs5.best_params_    #---->   {'C': 10, 'kernel': 'rbf'}
+
+print('dar nahayar natije mishavad k modele RF ba 0.17883512446232863 khata va ba max_features: 4, n_estimators: 100 behtarin modele in qesmat ast')
 
 
-
-#------------------REPORT---------------------------
-'''
-FINAL REPORT:
-
-
-
-
-
-
-'''
-
-
-
-
-
+#کد از صفر اصلاح شد و ایرادات و تغیراتی که از سمت شما گزارش شده بود اعمال شد
 
 
 
