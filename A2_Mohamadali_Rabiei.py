@@ -3,7 +3,21 @@
 Created on Tue Oct  8 16:51:20 2024
 
 @author: asus
+
+fght n_splits ro 5 konid
+kf=KFold(n_splits=5,shuffle=True,random_state=42)
+va yek rune dg begirid (va socre haye jadid ro bzarid) va dar enteha yek ghesmate report bezarid va begid data ha chi bode va x ha chi bdoan y chi bodd hadaf chi bode
+5 ta mdoelo begido moghayese konid kodom bhtrin bode va tamom shdo baram email konid
+
+chra? ---> vbaghty migid n_splits=10 yani data ro 1/10 mikone yani 10% ro var midare b onvane test ama vghty migid n_splits=5 yani 20% hamon 20-25% k goftim baayd vardahste bshe
+va hamchenin tedade 5 bar inkaro mikone (crossvalidation) pas zamane kamtari ttool mikeshe har run
+moafagh bashid
+
+
 """
+
+#-----------Import Libs----------------------
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -33,10 +47,15 @@ in dade ha marbut be qeimate khanehaye california mibashad k bar asase 8 moalefe
 dar marhale aval data ha az ketabkhane sklearn import va check shode and k dadeye tekrari va ya
 dadeye khali nadashte bashand
 '''
-#step 0 --> data cleaning
+
+#-----------Import DATA----------------------
+
 data=fetch_california_housing()
 x=data.data
 y=data.target
+
+#-----------STEP0 : DATA CLEANING----------------------
+
 a=pd.DataFrame(x)
 b=pd.DataFrame(y)
 a.describe()
