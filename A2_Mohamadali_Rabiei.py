@@ -3,21 +3,7 @@
 Created on Tue Oct  8 16:51:20 2024
 
 @author: asus
-
-fght n_splits ro 5 konid
-kf=KFold(n_splits=5,shuffle=True,random_state=42)
-va yek rune dg begirid (va socre haye jadid ro bzarid) va dar enteha yek ghesmate report bezarid va begid data ha chi bode va x ha chi bdoan y chi bodd hadaf chi bode
-5 ta mdoelo begido moghayese konid kodom bhtrin bode va tamom shdo baram email konid
-
-chra? ---> vbaghty migid n_splits=10 yani data ro 1/10 mikone yani 10% ro var midare b onvane test ama vghty migid n_splits=5 yani 20% hamon 20-25% k goftim baayd vardahste bshe
-va hamchenin tedade 5 bar inkaro mikone (crossvalidation) pas zamane kamtari ttool mikeshe har run
-moafagh bashid
-
-
 """
-
-#-----------Import Libs----------------------
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -43,19 +29,14 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import KFold 
 from sklearn.preprocessing import MinMaxScaler
 '''
-in dade ha marbut be qeimate khanehaye california mibashad k bar asase 8 moalefe tayin sodeand
+in dade ha marbut be qeimate khanehaye california mibashad k bar asase 8 moalefe tayin shode and
 dar marhale aval data ha az ketabkhane sklearn import va check shode and k dadeye tekrari va ya
 dadeye khali nadashte bashand
 '''
-
-#-----------Import DATA----------------------
-
+#step 0 --> data cleaning
 data=fetch_california_housing()
 x=data.data
 y=data.target
-
-#-----------STEP0 : DATA CLEANING----------------------
-
 a=pd.DataFrame(x)
 b=pd.DataFrame(y)
 a.describe()
@@ -105,8 +86,11 @@ x1=np.array(a)
 y1=np.array(b)
 
 #-----------Step2 : KFOLD ----------------------
-kf=KFold(n_splits=10,shuffle=True,random_state=42)
-
+kf=KFold(n_splits=5,shuffle=True,random_state=42)
+'''
+hengami k n_splits ro barabare 5 migozarim yani dade hara be 5 qesmat taqsim kardim 
+va harbar yek qesmat ra be onvane test barmidarim (20% be onvane test)
+'''
 #-----------Step3 : Model selection ----------------------
 #-----------LR ----------------------
 model1=LinearRegression()
@@ -115,19 +99,19 @@ gs1=GridSearchCV(model1,my_params1,cv=kf,scoring='neg_mean_absolute_percentage_e
 gs1.fit(x1,y1)
 #-----------KNN ----------------------
 model2=KNeighborsRegressor()
-my_params2= { 'n_neighbors':[1,2,3,4,5,6,100],
+my_params2= { 'n_neighbors':[1,2,3,4,5,6,7,8,10,11,13,15,17,20,50,100],
             'metric':['minkowski'  , 'euclidean' , 'manhattan'] }
 gs2=GridSearchCV(model2,my_params2,cv=kf,scoring='neg_mean_absolute_percentage_error')
 gs2.fit(x1,y1)
 #-----------DT ----------------------
 model3=DecisionTreeRegressor()
-my_params3={ 'max_depth':[1,2,3,4,5,6,7,100]}
+my_params3={ 'max_depth':[1,2,3,4,5,6,7,10,10,11,13,15,17,20,50,100]}
 gs3=GridSearchCV(model3, my_params3,cv=kf,scoring='neg_mean_absolute_percentage_error')
 gs3.fit(x1,y1)
 #-----------RF----------------------
 model4=RandomForestRegressor()
-my_params4={ 'n_estimators':[1,2,3,4,5,6,7,8,9,100] ,
-            'max_features':[1,2,3,4,5,6,7,8,9] }
+my_params4={ 'n_estimators':[1,2,3,4,5,6,7,8,9,10,11,13,15,17,20,40,100] ,
+            'max_features':[1,2,3,4,5,6,7,8,9,10,11,13,15,17,20] }
 gs4=GridSearchCV(model4, my_params4,cv=kf,scoring='neg_mean_absolute_percentage_error')
 gs4.fit(x1,y1)
 #----------SVR ----------------------
@@ -135,28 +119,50 @@ model5=SVR()
 scaler= MinMaxScaler()
 X_scaled=scaler.fit_transform(x1)
 my_params5={'kernel':['poly','rbf','linear'],
-           'C':[0.0001,0.001,0.01,1,10]}
+           'C':[0.0001,0.001,0.01,1,5,2,3,4,6,7,8,9]}
 gs5=GridSearchCV(model5, my_params5,cv=kf,scoring='neg_mean_absolute_percentage_error')
 gs5.fit(X_scaled,y1)
 #model=[LinearRegression(),KNeighborsRegressor(),DecisionTreeRegressor(),RandomForestRegressor(),SVR()]
 
 #-----------Step4 : best score & param ----------------------
-gs1.best_score_    #---->    np.float64(-0.3178265911552671)
-gs2.best_score_    #---->    np.float64(-0.4806836705270506)
-gs3.best_score_    #---->    np.float64(-0.2503102576177472)
-gs4.best_score_    #---->    np.float64(-0.17883512446232863)
-gs5.best_score_    #---->    np.float64(-0.22329321703244903)
+gsbest1=gs1.best_score_    #---->    
+gsbest2=gs2.best_score_    #---->    
+gsbest3=gs3.best_score_    #---->    
+gsbest4=gs4.best_score_    #---->    
+gsbest5=gs5.best_score_    #---->    
 
-gs1.best_params_    #---->   no params {}
-gs2.best_params_    #---->   {'metric': 'manhattan', 'n_neighbors': 5}
-gs3.best_params_    #---->   {'max_depth': 100}
-gs4.best_params_    #---->   {'max_features': 4, 'n_estimators': 100}
-gs5.best_params_    #---->   {'C': 10, 'kernel': 'rbf'}
+gsbest_params1=gs1.best_params_    #---->   no params {}
+gsbest_params2=gs2.best_params_    #---->   
+gsbest_params3=gs3.best_params_    #---->   
+gsbest_params4=gs4.best_params_    #---->   
+gsbest_params5=gs5.best_params_    #---->   
 
-print('dar nahayar natije mishavad k modele RF ba 0.17883512446232863 khata va ba max_features: 4, n_estimators: 100 behtarin modele in qesmat ast')
+gs_best = [gsbest1, gsbest2, gsbest3, gsbest4, gsbest5] 
+best_nahayi = max(gs_best)  
 
+if best_nahayi == gs_best[0]:
+   print('dar nahayat natije mishavad k modele LR ba' ,gsbest1, 'khata va ba myparams:',gsbest_params1, 'behtarin modele in qesmat ast')
+elif best_nahayi == gs_best[1]:
+    print('dar nahayat natije mishavad k modele KNN ba' ,gsbest2, 'khata va ba myparams:',gsbest_params2, 'behtarin modele in qesmat ast')
+elif best_nahayi == gs_best[2]:
+    print('dar nahayat natije mishavad k modele DT ba' ,gsbest3, 'khata va ba myparams:',gsbest_params3, 'behtarin modele in qesmat ast')
+elif best_nahayi == gs_best[3]:
+   print('dar nahayat natije mishavad k modele RF ba' ,gsbest4, 'khata va ba myparams:',gsbest_params4, 'behtarin modele in qesmat ast')
+elif best_nahayi == gs_best[4]:
+   print('dar nahayat natije mishavad k modele SVR ba' ,gsbest5, 'khata va ba myparams:',gsbest_params5, 'behtarin modele in qesmat ast')
+else:
+    raise TypeError('dade ha qalat and ya modeli vojud nadaraad ke BETAVANAD be dorosti in regression ra anjam dahad')
 
-#کد از صفر اصلاح شد و ایرادات و تغیراتی که از سمت شما گزارش شده بود اعمال شد
+#report
+'''
+in dade ha be do daste x va y taqsim bandi shod ke dar anha x barabare moalefe haye khaneha
+mesle metrazh, moqeyiate makani, sene khane va ... budand
+va y barabare qeimate har khane ast
+va in regression be manzure in anjam shod ke betavan ba moalefehaye mozkoor qeimate khane hara pishbini nemud
+
+dar akhar natije shod k modele4 (random forest behtarin pishbini ra beine model haye diar darad)
+'''
+
 
 
 
