@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 """
+
+APM:
+It is recieved and get score . Good Lucxk 
+
+
+
+
 Created on Tue Oct  8 16:51:20 2024
 
 @author: asus
 
 
-APM:
-It is recieved and get score . Good Lucxk 
 
 
 """
