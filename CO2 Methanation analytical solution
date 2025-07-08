@@ -1,0 +1,78 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Apr 10 13:44:49 2025
+
+@author: asus
+"""
+import tensorflow as tf
+import numpy as np
+from scipy.integrate import solve_ivp
+
+# Physical constants and operating conditions
+R = 8.314          # Universal gas constant (J/mol·K)
+T0 = 723.15        # Reaction temperature (K)
+Pt = 5.0           # Total pressure (bar)
+L = 3.0            # Reactor length (m)
+rho_cat = 23000    # Catalyst density (kg/m³)
+epsilon = 0.4      # Bed porosity
+d = 0.01           # Reactor diameter (m)
+At = np.pi * (d**2) / 4  # Reactor cross-sectional area (m²)
+
+# Kinetic parameters
+k = 6.41e-5 * np.exp((93.6e3 / R) * (1 / 555 - 1 / T0))      # Reaction rate constant (mol/kg·s)
+k_ads = 0.62e-5 * np.exp((64.3e3 / R) * (1 / 555 - 1 / T0))  # Adsorption constant (bar^-0.5)
+k_eq = 137 * T0**(-3.998) * np.exp(158.5e3 / (R * T0))       # Equilibrium constant (dimensionless)
+
+# Initial conditions (inlet molar flow rates)
+FA0 = 94.74    # CO2 inlet flow rate (mole/s)
+FB0 = 378.9    # H2 inlet flow rate (mole/s)
+FC0 = 0.0      # CH4 inlet flow rate (mole/s)
+FD0 = 0.0      # H2O inlet flow rate (mole/s)
+inivalues = [FA0, FB0, FC0, FD0]
+
+def rate(FA, FB, FC, FD):
+    """
+    Calculate reaction rate and related parameters using TensorFlow operations
+    
+    Args:
+        FA, FB, FC, FD: Flow rates of CO2, H2, CH4, and H2O respectively
+        
+    Returns:
+        rA: Reaction rate
+    """
+    
+    Ft = FA + FB + FC + FD 
+    P_CO2 = (FA/Ft)*Pt
+    P_H2 = (FB/Ft)*Pt
+    P_CH4 = (FC/Ft)*Pt
+    P_H2O = (FD/Ft)*Pt
+
+    numerator = P_H2**0.31 * P_CO2**0.16
+    denominator = 1 + k_ads * (P_H2O / tf.sqrt(P_H2))
+    driving_force = (1 - (P_CH4 * P_H2O**2) / (P_H2**4 * P_CO2 * k_eq))
+    coeff = rho_cat * 0.6 * k 
+    rA = coeff * (numerator / denominator) * driving_force
+    
+    return rA
+
+# Analytical solution function
+def analytical_solution():
+    def pfr(V, l):  # PFR differential equations
+        FA, FB, FC, FD = l
+        
+        # Calculate reaction rate using the new function
+        rA = rate(FA, FB, FC, FD)
+        dFA_dV = -rA
+        dFB_dV = -4 * rA
+        dFC_dV = rA
+        dFD_dV = 2 * rA
+
+        # Mass balance equations
+        return [dFA_dV, dFB_dV, dFC_dV, dFD_dV]
+
+    # Solve ODE system
+    sol = solve_ivp(pfr, [0, L], inivalues, method='RK45')
+    
+    # Convert results to appropriate format
+    solution_array = np.vstack([sol.y[0], sol.y[1], sol.y[2], sol.y[3]]).T
+    return sol.t, solution_array
