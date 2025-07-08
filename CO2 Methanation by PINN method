@@ -1,0 +1,202 @@
+# -*- coding: utf-8 -*-
+"""
+Enhanced Physics Informed Neural Network (PINN) Implementation for CO2 Methanation in a Plug Flow Reactor
+
+This code implements a hybrid PINN approach to solve the system of ODEs describing CO2 methanation reaction 
+in a plug flow reactor (PFR). The reaction system involves the Sabatier reaction:
+
+CO2 + 4H2 ⟶ CH4 + 2H2O
+
+The PFR model consists of four coupled ODEs representing the molar flow rates of species:
+dFA/dV = -rA      (CO2)
+dFB/dV = -4rA     (H2)
+dFC/dV = +rA      (CH4)
+dFD/dV = +2rA     (H2O)
+
+Key Features:
+- Hybrid architecture combining PINN with analytical solution validation
+- Upwind derivatives for improved numerical stability
+- Custom loss function incorporating:
+    * Physics-based residuals
+    * Boundary conditions
+    * Analytical solution guidance
+- Advanced optimization using Adam with gradient clipping
+- Comprehensive visualization of species profiles and conversion
+
+The implementation uses TensorFlow 2.x and includes:
+- Custom neural network architecture with increased capacity
+- Efficient collocation point handling
+- Robust training procedure with early stopping capability
+- Comparative analysis with analytical solution
+
+Rev 1.0
+Created on Feb 2024
+- Initial implementation with hybrid PINN approach
+- Upwind derivatives implementation
+- Comprehensive validation system
+
+Author: M.A.R
+
+"""
+
+import os
+import tensorflow as tf
+import numpy as np
+import matplotlib.pyplot as plt
+from analytical_solution import (L, FA0, FB0, FC0, FD0, analytical_solution, rate)
+
+# Set all random seeds and environment variables for reproducibility
+os.environ['PYTHONHASHSEED'] = '32'
+os.environ['TF_DETERMINISTIC_OPS'] = '1'
+os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
+
+np.random.seed(32)
+tf.random.set_seed(32)
+
+# Set deterministic behavior for GPU if available
+if tf.config.list_physical_devices('GPU'):
+    for gpu in tf.config.list_physical_devices('GPU'):
+        tf.config.experimental.set_memory_growth(gpu, True)
+    tf.config.threading.set_inter_op_parallelism_threads(1)
+    tf.config.threading.set_intra_op_parallelism_threads(1)
+
+# Neural Network Architecture with deterministic initialization
+class HybridPINN(tf.keras.Model):
+    def __init__(self):
+        super(HybridPINN, self).__init__()
+        
+        # Set deterministic initializers
+        kernel_init = tf.keras.initializers.GlorotUniform(seed=32)
+        bias_init = tf.keras.initializers.Zeros()
+        
+        self.dense1 = tf.keras.layers.Dense(64, activation='tanh',
+                                          kernel_initializer=kernel_init,
+                                          bias_initializer=bias_init)
+        self.dense2 = tf.keras.layers.Dense(64, activation='tanh',
+                                          kernel_initializer=kernel_init,
+                                          bias_initializer=bias_init)
+        self.dense3 = tf.keras.layers.Dense(64, activation='relu',
+                                          kernel_initializer=kernel_init,
+                                          bias_initializer=bias_init)
+        self.out = tf.keras.layers.Dense(4, activation='softplus',
+                                       kernel_initializer=kernel_init,
+                                       bias_initializer=bias_init)
+        
+    def call(self, x):
+        h1 = self.dense1(x)
+        h2 = self.dense2(h1)
+        h3 = self.dense3(h2)
+        return self.out(h3)
+
+# Create model instance
+model = HybridPINN()
+
+# Physics-informed residual calculation with upwind derivatives
+@tf.function
+def compute_residual(x):
+    
+    # Current point predictions
+    C = model(x)
+    FA, FB, FC, FD = tf.unstack(C, axis=1)
+    
+    # Upwind point predictions
+    delta = 1e-3
+    x_backward = x - delta
+    C_backward = model(x_backward)
+    FA_backward, FB_backward, FC_backward, FD_backward = tf.unstack(C_backward, axis=1)
+    
+    # Upwind derivatives
+    dFA_dV = tf.expand_dims((FA - FA_backward) / delta, axis=1)
+    dFB_dV = tf.expand_dims((FB - FB_backward) / delta, axis=1)
+    dFC_dV = tf.expand_dims((FC - FC_backward) / delta, axis=1)
+    dFD_dV = tf.expand_dims((FD - FD_backward) / delta, axis=1)
+    
+    # Get reaction rate from analytical solution module
+    rA = rate(FA, FB, FC, FD)
+    rA = tf.expand_dims(rA, axis=1)
+
+    # Residuals
+    res_FA = dFA_dV + rA
+    res_FB = dFB_dV + 4*rA
+    res_FC = dFC_dV - rA
+    res_FD = dFD_dV - 2*rA
+    
+    return tf.concat([res_FA, res_FB, res_FC, res_FD], axis=1)
+
+# Loss function
+@tf.function
+def loss_fn(x_colloc, x_ic):
+    # Physics loss
+    residuals = compute_residual(x_colloc)
+    physics_loss = tf.reduce_mean(tf.square(residuals))
+    
+    # initial conditions
+    C_pred = model(x_ic)
+    initial_conditions = tf.constant([[FA0, FB0, FC0, FD0]], dtype=tf.float32)
+    ic_loss = tf.reduce_sum(tf.square(C_pred - initial_conditions))
+    
+    total_loss = physics_loss + ic_loss
+    return total_loss 
+
+# Training setup with sorted collocation points
+x_colloc = tf.convert_to_tensor(np.sort(np.linspace(0, L, 140)).reshape(-1, 1), dtype=tf.float32)
+x_ic = tf.convert_to_tensor([[0.0]], dtype=tf.float32)
+
+# Optimizer with fixed seed
+optimizer = tf.keras.optimizers.Adam(learning_rate=0.001, clipnorm=1.0)
+
+epochs = 2400
+loss_history = []
+
+print("Starting training...")
+for epoch in range(epochs):
+    
+    with tf.GradientTape() as tape:
+        total_loss = loss_fn(x_colloc, x_ic)
+        if epoch %199 == 0:  
+            print(epoch, total_loss)
+            
+        grads = tape.gradient(total_loss, model.trainable_variables)
+        optimizer.apply_gradients(zip(grads, model.trainable_variables))
+    
+        loss_history.append(total_loss.numpy())
+    
+
+print("Training completed!")
+
+# Get analytical solution
+V, C_analytical = analytical_solution()
+
+# Plot results
+C_pinn = model(tf.reshape(V, [-1, 1])).numpy()
+
+# Flow rates plot
+plt.figure(figsize=(12, 6))
+plt.plot(V, C_analytical[:, 0], 'r--', label='Analytical CO2')
+plt.plot(V, C_pinn[:, 0], 'r-', label='PINN CO2')
+plt.plot(V, C_analytical[:, 1], 'b--', label='Analytical H2')
+plt.plot(V, C_pinn[:, 1], 'b-', label='PINN H2')
+plt.plot(V, C_analytical[:, 2], 'g--', label='Analytical CH4')
+plt.plot(V, C_pinn[:, 2], 'g-', label='PINN CH4')
+plt.plot(V, C_analytical[:, 3], 'm--', label='Analytical H2O')
+plt.plot(V, C_pinn[:, 3], 'm-', label='PINN H2O')
+plt.xlabel('Reactor Length (m)')
+plt.ylabel('Flow Rates (mol/s)')
+plt.title('Comparison with Analytical Solution')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Conversion plot
+conversion_pinn = 1 - C_pinn[:, 0]/FA0
+conversion_analytical = 1 - C_analytical[:, 0]/FA0
+
+plt.figure(figsize=(8, 5))
+plt.plot(V, conversion_analytical*100, 'k--', label='Analytical')
+plt.plot(V, conversion_pinn*100, 'r-', label='PINN')
+plt.xlabel('Reactor Length (m)')
+plt.ylabel('CO2 Conversion (%)')
+plt.title('Conversion Profile Comparison')
+plt.legend()
+plt.grid(True)
+plt.show()
